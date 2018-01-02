@@ -1,0 +1,8 @@
+#+TITLE: BlockMaps.jl
+#+AUTHOR: Stefanos Carlström
+#+EMAIL: stefanos.carlstrom@gmail.com
+
+[[https://travis-ci.org/jagot/BlockMaps.jl][https://travis-ci.org/jagot/BlockMaps.jl.svg?branch=master]]
+[[https://coveralls.io/github/jagot/BlockMaps.jl?branch=master][https://coveralls.io/repos/jagot/BlockMaps.jl/badge.svg?branch=master&service=github]]
+[[http://codecov.io/github/jagot/BlockMaps.jl?branch=master][http://codecov.io/github/jagot/BlockMaps.jl/coverage.svg?branch=master]]
+
