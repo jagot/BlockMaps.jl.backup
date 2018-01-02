@@ -10,6 +10,12 @@ end
 Base.eltype(b::Block{T}) where T = T
 Base.size(b::Block) = size(b.a)
 
+Base.getindex(b::Block, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) =
+    b.a[I-b.i+1,J-b.j+1]
+Base.setindex!(b::Block{T}, v::T, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) where T =
+    b.a[I-b.i+1,J-b.j+1] = v
+
+
 function extents(b::Block{T}) where T
     m,n = size(b)
     b.i+(1:m)-1,b.j+(1:n)-1
@@ -39,6 +45,8 @@ struct BlockMap{T} <: LinearMap{T}
     _issymmetric::Bool
     _ishermitian::Bool
     _isposdef::Bool
+    clear_overlaps::Bool
+    overlap_tol::Float64
 end
 
 # properties
@@ -51,7 +59,9 @@ Base.isposdef(A::BlockMap) = A._isposdef
 function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
                             issymmetric::Bool = false,
                             ishermitian::Bool = false,
-                            isposdef::Bool = false) where {T}
+                            isposdef::Bool = false,
+                            clear_overlaps::Bool = false,
+                            overlap_tol::Float64 = eps(Float64)) where {T}
     if m != n
         issymmetric && error("Non-square matrices cannot be symmetric")
         ishermitian && error("Non-square matrices cannot be hermitian")
@@ -66,7 +76,8 @@ function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
         end
     end
     BlockMap(m, n, Block{T}[],
-             issymmetric, ishermitian, isposdef)
+             issymmetric, ishermitian, isposdef,
+             clear_overlaps, overlap_tol)
 end
 
 function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
@@ -95,8 +106,18 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
     end
     for b in A.blocks
         for t in tests
-            if !any(isempty.(t(nb, b)))
-                error("Cannot insert new $(nb) overlapping with old block at $(b)")
+            overlap = t(nb, b)
+            if !any(isempty.(overlap))
+                if !A.clear_overlaps
+                    error("Cannot insert new $(nb) overlapping with old block at $(b)")
+                else
+                    println("$(nb) ∩ $(b) = $(overlap)")
+                    d = vecnorm(nb[overlap...]-b[overlap...])
+                    if d > A.overlap_tol
+                        error("Overlapping regions of $(nb) and $(b) differ by $(d) > $(A.overlap_tol)")
+                    end
+                    b[overlap...] = zero(T)
+                end
             end
         end
     end

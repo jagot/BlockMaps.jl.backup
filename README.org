@@ -76,7 +76,7 @@ dense.
   #+END_SRC
 
   #+RESULTS:
-  : BlockMaps.BlockMap{Float64}(10, 10, BlockMaps.Block{Float64}[2x2 Float64 block at (1,1), 2x2 Float64 block at (1,3), 2x2 Float64 block at (1,9), 2x3 Float64 block at (4,6), 2x3 Float64 block at (6,8), 2x2 Float64 block at (9,9)], true, true, false)
+  : BlockMaps.BlockMap{Float64}(10, 10, BlockMaps.Block{Float64}[2x2 Float64 block at (1,1), 2x2 Float64 block at (1,3), 2x2 Float64 block at (1,9), 2x3 Float64 block at (4,6), 2x3 Float64 block at (6,8), 2x2 Float64 block at (9,9)], true, true, false, false, 2.220446049250313e-16)
 
   #+BEGIN_SRC julia :exports results :results file
     figure("symmetric matrix")
@@ -90,14 +90,100 @@ dense.
   #+RESULTS:
   [[file:figures/symmetric-matrix.svg]]
 
+** Overlapping blocks
+   Normally, we do not want the blocks to overlap, since then the same
+   “logical” matrix elements would be referenced more than
+   once. However, there are applications (such as FEM Laplacians),
+   where the matrices are almost block diagonal, with one matrix
+   element overlapping between subsequent blocks. This can be
+   accommodated the as follows.
+
+   We first define a nice test matrix:
+   
+   #+BEGIN_SRC julia :exports both
+     function matrix(fun::Function, m, n)
+         M = zeros((m,n))
+         for i = 1:m
+             for j = 1:m
+                 M[i,j] = fun(i,j)
+             end
+         end
+         M
+     end
+
+     a = matrix(5,5) do i,j
+         2i*j - 16
+     end
+   #+END_SRC
+
+   #+RESULTS:
+   | -14 | -12 | -10 | -8 | -6 |
+   | -12 |  -8 |  -4 |  0 |  4 |
+   | -10 |  -4 |   2 |  8 | 14 |
+   |  -8 |   0 |   8 | 16 | 24 |
+   |  -6 |   4 |  14 | 24 | 34 |
+
+   Trying to create a =BlockMap= with overlapping blocks will result
+   in an error:
+   #+BEGIN_SRC julia :exports both :results verbatim
+     B = BlockMaps.BlockMap(Float64, 9, 9)
+     B[1,1] = a
+     try
+         B[5,5] = a[end:-1:1,end:-1:1]
+     catch e
+         e
+     end
+   #+END_SRC
+
+   #+RESULTS:
+   : ErrorException("Cannot insert new 5x5 Float64 block at (5,5) overlapping with old block at 5x5 Float64 block at (1,1)")
+
+   If however we state that we wish overlapping regions of previous
+   blocks to be cleared, it works:
+
+   #+BEGIN_SRC julia :exports code
+     B = BlockMaps.BlockMap(Float64, 9, 9, clear_overlaps=true)
+     B[1,1] = a
+     B[5,5] = a[end:-1:1,end:-1:1]
+   #+END_SRC
+
+   #+RESULTS:
+   | 34 | 24 |  14 |   4 |  -6 |
+   | 24 | 16 |   8 |   0 |  -8 |
+   | 14 |  8 |   2 |  -4 | -10 |
+   |  4 |  0 |  -4 |  -8 | -12 |
+   | -6 | -8 | -10 | -12 | -14 |
+
+   #+BEGIN_SRC julia :exports results :results file
+     figure("overlapping matrix")
+     clf()
+     hinton_plot_matrix(full(B))
+     tight_layout()
+     savefig("figures/overlapping-matrix.svg")
+     "figures/overlapping-matrix.svg"
+   #+END_SRC
+
+   #+RESULTS:
+   [[file:figures/overlapping-matrix.svg]]
+
+   Note, however, that the overlapping blocks must agree to within a
+   certain tolerance:
+   
+   #+BEGIN_SRC julia :exports both :results verbatim
+     B = BlockMaps.BlockMap(Float64, 9, 9, clear_overlaps=true)
+     B[1,1] = a
+     try
+         B[4,4] = a
+     catch e
+         e
+     end
+   #+END_SRC
+
+   #+RESULTS:
+   : ErrorException("Overlapping regions of 5x5 Float64 block at (4,4) and 5x5 Float64 block at (1,1) differ by 59.632206063502295 > 2.220446049250313e-16")
+
 * Known issues
-  - The blocks are processed in the order they where assigned,
+  - [ ] The blocks are processed in the order they where assigned,
     possibly leading to suboptimal performance. Maybe a
     =sort!(A::BlockMap)= operation should be implemented.
-  - Parallelization?
-  - A “power user” mode should be implemented, allowing overlapping
-    blocks, where the user is responsible for the overlapping regions
-    being applied only once (or maybe the overlap can be cleared
-    automatically by BlockMaps.jl?); this is useful in FEM
-    applications, where the Laplace operator is almost block-diagonal,
-    with one matrix element overlapping between subsequent blocks.
+  - [ ] Parallelization?    
