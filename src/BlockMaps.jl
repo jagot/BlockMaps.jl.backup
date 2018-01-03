@@ -55,7 +55,6 @@ Base.issymmetric(A::BlockMap) = A._issymmetric
 Base.ishermitian(A::BlockMap) = A._ishermitian
 Base.isposdef(A::BlockMap) = A._isposdef
 
-# multiplication with vector
 function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
                             issymmetric::Bool = false,
                             ishermitian::Bool = false,
@@ -78,6 +77,29 @@ function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
     BlockMap(m, n, Block{T}[],
              issymmetric, ishermitian, isposdef,
              clear_overlaps, overlap_tol)
+end
+
+function (::Type{BlockMap})(m::Integer, n::Integer,
+                            indices::Vector{Tuple{Integer,Integer}},
+                            blocks::Vector{M};
+                            kwargs...) where M<:AbstractMatrix{T} where T
+    B = BlockMap(eltype(first(blocks)), m, n; kwargs...)
+    for i in eachindex(indices)
+        B[indices[i]...] = blocks[i]
+    end
+    B
+end
+
+function (::Type{BlockMap})(indices::Vector{Tuple{Integer,Integer}},
+                            blocks::Vector{M};
+                            kwargs...) where M<:AbstractMatrix{T} where T
+    m,n = 0,0
+    for (i,b) in enumerate(blocks)
+        bm,bn = size(b)
+        m = max(m, indices[i][1]+bm-1)
+        n = max(n, indices[i][2]+bn-1)
+    end
+    BlockMap(m,n, indices, blocks; kwargs...)
 end
 
 function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
@@ -111,7 +133,6 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
                 if !A.clear_overlaps
                     error("Cannot insert new $(nb) overlapping with old block at $(b)")
                 else
-                    println("$(nb) ∩ $(b) = $(overlap)")
                     d = vecnorm(nb[overlap...]-b[overlap...])
                     if d > A.overlap_tol
                         error("Overlapping regions of $(nb) and $(b) differ by $(d) > $(A.overlap_tol)")
@@ -126,6 +147,7 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
     nb
 end
 
+# multiplication with vector
 function Base.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) where T
     y[:] = 0
     for b in A.blocks
