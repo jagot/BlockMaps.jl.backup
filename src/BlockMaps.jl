@@ -1,5 +1,6 @@
 module BlockMaps
 using LinearMaps
+using RecipesBase
 
 struct Block{T}
     a::AbstractMatrix{T}
@@ -163,6 +164,14 @@ function Base.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) whe
         end
     end
     y
+end
+
+@recipe function plot(A::BlockMap)
+    legend --> false
+    yflip --> true
+    seriestype := :heatmap
+    aspect_ratio := 1
+    full(A)
 end
 
 export BlockMap
