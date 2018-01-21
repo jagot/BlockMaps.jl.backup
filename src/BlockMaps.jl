@@ -81,9 +81,9 @@ function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
 end
 
 function (::Type{BlockMap})(m::Integer, n::Integer,
-                            indices::Vector{Tuple{Integer,Integer}},
+                            indices::Vector{Tuple{I,I}},
                             blocks::Vector{M};
-                            kwargs...) where M<:AbstractMatrix{T} where T
+                            kwargs...) where {M<:AbstractMatrix{T} where T,I<:Integer}
     B = BlockMap(eltype(first(blocks)), m, n; kwargs...)
     for i in eachindex(indices)
         B[indices[i]...] = blocks[i]
@@ -91,9 +91,9 @@ function (::Type{BlockMap})(m::Integer, n::Integer,
     B
 end
 
-function (::Type{BlockMap})(indices::Vector{Tuple{Integer,Integer}},
+function (::Type{BlockMap})(indices::Vector{Tuple{I,I}},
                             blocks::Vector{M};
-                            kwargs...) where M<:AbstractMatrix{T} where T
+                            kwargs...) where {M<:AbstractMatrix{T} where T,I<:Integer}
     m,n = 0,0
     for (i,b) in enumerate(blocks)
         bm,bn = size(b)
