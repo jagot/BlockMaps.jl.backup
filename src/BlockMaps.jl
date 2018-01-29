@@ -15,7 +15,7 @@ Base.size(b::Block) = size(b.a)
 
 Base.getindex(b::Block, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) =
     b.a[I-b.i+1,J-b.j+1]
-Base.setindex!(b::Block{T}, v::T, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) where T =
+Base.setindex!(b::Block{T}, v::Union{T,Matrix{T}}, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) where T =
     b.a[I-b.i+1,J-b.j+1] = v
 
 
@@ -48,7 +48,7 @@ struct BlockMap{T} <: LinearMap{T}
     _issymmetric::Bool
     _ishermitian::Bool
     _isposdef::Bool
-    clear_overlaps::Bool
+    overlaps::Symbol
     overlap_tol::Float64
 end
 
@@ -62,7 +62,7 @@ function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
                             issymmetric::Bool = false,
                             ishermitian::Bool = false,
                             isposdef::Bool = false,
-                            clear_overlaps::Bool = false,
+                            overlaps::Symbol = :disallow,
                             overlap_tol::Float64 = eps(Float64)) where {T}
     if m != n
         issymmetric && error("Non-square matrices cannot be symmetric")
@@ -77,9 +77,12 @@ function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
             end
         end
     end
+    if overlaps ∉ [:disallow, :clear, :split]
+        error("Unknown overlap option, $(overlap) (possible choices: $([:disallow, :clear, :split]))")
+    end
     BlockMap(m, n, Block{T}[],
              issymmetric, ishermitian, isposdef,
-             clear_overlaps, overlap_tol)
+             overlaps, overlap_tol)
 end
 
 function (::Type{BlockMap})(m::Integer, n::Integer,
@@ -133,14 +136,19 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
         for t in tests
             overlap = t(nb, b)
             if !any(isempty.(overlap))
-                if !A.clear_overlaps
+                if A.overlaps == :disallow
                     error("Cannot insert new $(nb) overlapping with old block at $(b)")
                 else
                     d = vecnorm(nb[overlap...]-b[overlap...])
                     if d > A.overlap_tol
                         error("Overlapping regions of $(nb) and $(b) differ by $(d) > $(A.overlap_tol)")
                     end
-                    b[overlap...] = zero(T)
+                    if A.overlaps == :clear
+                        b[overlap...] = zero(T)
+                    elseif A.overlaps == :split
+                        nb[overlap...] /= 2
+                        b[overlap...] /= 2
+                    end
                 end
             end
         end
