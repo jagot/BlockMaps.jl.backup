@@ -3,6 +3,7 @@ __precompile__(true)
 module BlockMaps
 using LinearMaps
 using RecipesBase
+using LinearAlgebra
 
 struct Block{T}
     a::AbstractMatrix{T}
@@ -54,9 +55,9 @@ end
 
 # properties
 Base.size(A::BlockMap) = (A.m,A.n)
-Base.issymmetric(A::BlockMap) = A._issymmetric
-Base.ishermitian(A::BlockMap) = A._ishermitian
-Base.isposdef(A::BlockMap) = A._isposdef
+LinearAlgebra.issymmetric(A::BlockMap) = A._issymmetric
+LinearAlgebra.ishermitian(A::BlockMap) = A._ishermitian
+LinearAlgebra.isposdef(A::BlockMap) = A._isposdef
 
 function (::Type{BlockMap})(::Type{T}, m::Integer, n::Integer;
                             issymmetric::Bool = false,
@@ -159,7 +160,7 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
 end
 
 # multiplication with vector
-function Base.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) where T
+function LinearAlgebra.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) where T
     y[:] = 0
     for b in A.blocks
         be = extents(b)
