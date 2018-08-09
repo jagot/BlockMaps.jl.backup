@@ -1,0 +1,8 @@
+name = "BlockMaps"
+uuid = "d8394ddc-3346-5325-9a2b-8a6d3660a8c1"
+authors = ["Stefanos Carlström <stefanos.carlstrom@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
+RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
