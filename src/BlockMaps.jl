@@ -15,14 +15,14 @@ Base.eltype(b::Block{T}) where T = T
 Base.size(b::Block) = size(b.a)
 
 Base.getindex(b::Block, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) =
-    b.a[I-b.i+1,J-b.j+1]
+    b.a[I .- b.i .+ 1, J .- b.j .+ 1]
 Base.setindex!(b::Block{T}, v::Union{T,Matrix{T}}, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) where T =
-    b.a[I-b.i+1,J-b.j+1] = v
+    b.a[I .- b.i .+ 1, J .- b.j .+ 1] = v
 
 
 function extents(b::Block{T}) where T
     m,n = size(b)
-    b.i+(1:m)-1,b.j+(1:n)-1
+    b.i .+ (1:m) .- 1, b.j .+ (1:n) .- 1
 end
 
 function Base.show(io::IO, b::Block{T}) where T
@@ -140,7 +140,7 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
                 if A.overlaps == :disallow
                     error("Cannot insert new $(nb) overlapping with old block at $(b)")
                 else
-                    d = vecnorm(nb[overlap...]-b[overlap...])
+                    d = norm(nb[overlap...]-b[overlap...])
                     if d > A.overlap_tol
                         error("Overlapping regions of $(nb) and $(b) differ by $(d) > $(A.overlap_tol)")
                     end
@@ -160,16 +160,16 @@ function Base.setindex!(A::BlockMap{T}, a::AbstractMatrix,
 end
 
 # multiplication with vector
-function LinearAlgebra.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) where T
-    y[:] = 0
+function LinearMaps.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) where T
+    y[:] .= 0
     for b in A.blocks
         be = extents(b)
         y[be[1]] += b.a*x[be[2]]
         if b.i != b.j && (ishermitian(A) || issymmetric(A))
             f = if ishermitian(A)
-                Ac_mul_B
+                LinearMaps.Ac_mul_B
             else
-                At_mul_B
+                LinearMaps.At_mul_B
             end
             y[be[2]] += f(b.a, view(x, be[1]))
         end
