@@ -4,6 +4,7 @@ module BlockMaps
 using LinearMaps
 using RecipesBase
 using LinearAlgebra
+using SparseArrays
 
 struct Block{T}
     a::AbstractMatrix{T}
@@ -176,6 +177,16 @@ function LinearMaps.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVecto
     end
     y
 end
+
+function SparseArrays.sparse(A::BlockMap)
+    S = spzeros(eltype(T), size(T)...)
+    for b in A.blocks
+        S[extents(b)...] += b.a
+    end
+    S
+end
+
+LinearAlgebra.opnorm(M::BlockMap,args...) = opnorm(sparse(M), args...)
 
 @recipe function plot(A::BlockMap)
     legend --> false
