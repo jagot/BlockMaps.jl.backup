@@ -6,10 +6,14 @@ using RecipesBase
 using LinearAlgebra
 using SparseArrays
 
-struct Block{T}
+mutable struct Block{T}
     a::AbstractMatrix{T}
     i::Integer
+    I::Integer
     j::Integer
+    J::Integer
+    Block(a::AbstractMatrix{T}, i::Integer, j::Integer) where T = new{T}(
+        a, i, i+size(a,1)-1, j, j+size(a,2)-1)
 end
 
 Base.eltype(b::Block{T}) where T = T
@@ -17,14 +21,12 @@ Base.size(b::Block) = size(b.a)
 
 Base.getindex(b::Block, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) =
     b.a[I .- b.i .+ 1, J .- b.j .+ 1]
-Base.setindex!(b::Block{T}, v::Union{T,Matrix{T}}, I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) where T =
+Base.setindex!(b::Block{T}, v::Union{T,Matrix{T}},
+               I::Union{Integer,UnitRange}, J::Union{Integer,UnitRange}) where T =
     b.a[I .- b.i .+ 1, J .- b.j .+ 1] = v
 
 
-function extents(b::Block{T}) where T
-    m,n = size(b)
-    b.i .+ (1:m) .- 1, b.j .+ (1:n) .- 1
-end
+extents(b::Block{T}) where T = b.i:b.I, b.j:b.J
 
 function Base.show(io::IO, b::Block{T}) where T
     m,n = size(b)
@@ -43,7 +45,7 @@ function tintersect(b1::Block{T},b2::Block{T}) where T
     intersect(e1[1],e2[1]),intersect(e1[2],e2[2])
 end
 
-struct BlockMap{T} <: LinearMap{T}
+mutable struct BlockMap{T} <: LinearMap{T}
     m::Integer
     n::Integer
     blocks::Vector{Block{T}}
@@ -162,17 +164,17 @@ end
 
 # multiplication with vector
 function LinearMaps.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVector) where T
-    y[:] .= 0
+    fill!(y, 0)
     for b in A.blocks
         be = extents(b)
-        y[be[1]] += b.a*x[be[2]]
+        y[be[1]] += b.a*@view(x[be[2]])
         if b.i != b.j && (ishermitian(A) || issymmetric(A))
             f = if ishermitian(A)
                 LinearMaps.Ac_mul_B
             else
                 LinearMaps.At_mul_B
             end
-            y[be[2]] += f(b.a, view(x, be[1]))
+            y[be[2]] += f(b.a, @view(x[be[1]]))
         end
     end
     y
