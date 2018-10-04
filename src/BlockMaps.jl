@@ -181,7 +181,7 @@ function LinearMaps.A_mul_B!(y::AbstractVector, A::BlockMap{T}, x::AbstractVecto
 end
 
 function SparseArrays.sparse(A::BlockMap)
-    S = spzeros(eltype(T), size(T)...)
+    S = spzeros(eltype(A), size(A)...)
     for b in A.blocks
         S[extents(b)...] += b.a
     end
