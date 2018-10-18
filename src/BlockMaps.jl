@@ -5,6 +5,7 @@ using LinearMaps
 using RecipesBase
 using LinearAlgebra
 using SparseArrays
+using BandedMatrices
 
 mutable struct Block{T}
     a::AbstractMatrix{T}
@@ -187,6 +188,19 @@ function SparseArrays.sparse(A::BlockMap)
     end
     S
 end
+
+import Base: convert, promote_rule
+
+function convert(::Type{BandedMatrix}, A::BlockMap{T}) where T
+    k = maximum([size(b)[1] for b in A.blocks]) - 1
+    B = BandedMatrix{T}(Zeros(size(A)...), (k, k))
+    for b in A.blocks
+        B[extents(b)...] += b.a
+    end
+    B
+end
+
+promote_rule(::Type{BlockMap}, ::Type{SM}) where {SM<:AbstractSparseMatrix} = SM
 
 LinearAlgebra.opnorm(M::BlockMap,args...) = opnorm(sparse(M), args...)
 
